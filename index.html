@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>UID Dashboard PRO</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <aside class="sidebar">
+    <div class="logo">UID<span>PRO</span></div>
+    <nav>
+      <a class="active">Dashboard</a>
+      <a>Licencias</a>
+      <a>Usuarios</a>
+      <a>Configuración</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1>Gestión de UIDs</h1>
+      <span class="status">● Online</span>
+    </header>
+
+    <!-- STATS -->
+    <section class="stats">
+      <div class="stat-card">
+        <h3>Total UIDs</h3>
+        <p id="totalCount">0</p>
+      </div>
+      <div class="stat-card green">
+        <h3>Activos</h3>
+        <p id="activeCount">0</p>
+      </div>
+      <div class="stat-card red">
+        <h3>Expirados</h3>
+        <p id="expiredCount">0</p>
+      </div>
+    </section>
+
+    <!-- ADD UID -->
+    <section class="card">
+      <h2>Agregar UID</h2>
+      <div class="form-row">
+        <input id="newUID" placeholder="UID" />
+        <input id="days" type="number" placeholder="Días" />
+        <button class="btn primary" onclick="addUID()">Agregar</button>
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section class="card">
+      <h2>UIDs Registrados</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>UID</th>
+            <th>Expira</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="uidList"></tbody>
+      </table>
+    </section>
+
+    <footer>
+      UID Dashboard PRO · Cloudflare Workers
+    </footer>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
