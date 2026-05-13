@@ -1,45 +1,59 @@
-/* ============================================================
-   UID PRO — Sistema de Roles (Superadmin + Operadores)
-   ============================================================ */
+/* ════════════════════════════════════════════════
+   UID VAULT — app.js
+   Funciones:
+   · Login con roles (superadmin / admin)
+   · CRUD de UIDs vía Cloudflare Worker
+   · Tracking de autor por UID (localStorage)
+   · Feed de actividad reciente
+   · Gestión de admins (solo superadmin)
+════════════════════════════════════════════════ */
 
 const API_URL = "https://uid-worker.bottuser7.workers.dev/uids";
 
-/* ─── ESTADO GLOBAL ─────────────────────────────────── */
-let currentUser = null; // { username, role: 'superadmin'|'operator' }
-let appUsers = {};      // { username: { pass, role, createdAt } }
+/* ────────────────────────────────────────
+   USUARIOS — almacenados en localStorage
+   Estructura: { username: { pass, role, name, color } }
+──────────────────────────────────────── */
+const SEED_USERS = {
+  superadmin: { pass: "super1234", role: "superadmin", name: "Super Admin",  color: "#f5a524" },
+  admin1:     { pass: "admin1234", role: "admin",      name: "Administrador 1", color: "#6777ff" }
+};
 
-/* ─── USUARIOS INICIALES (guardados en localStorage) ─── */
-function loadAppUsers() {
-  const stored = localStorage.getItem("uid_pro_users");
-  if (stored) {
-    appUsers = JSON.parse(stored);
-  } else {
-    // Crear superadmin por defecto
-    appUsers = {
-      admin: { pass: "admin123", role: "superadmin", createdAt: new Date().toISOString() }
-    };
-    saveAppUsers();
-  }
+function getUsers() {
+  try {
+    return JSON.parse(localStorage.getItem("uidvault_users")) || SEED_USERS;
+  } catch { return SEED_USERS; }
+}
+function saveUsers(u) {
+  localStorage.setItem("uidvault_users", JSON.stringify(u));
 }
 
-function saveAppUsers() {
-  localStorage.setItem("uid_pro_users", JSON.stringify(appUsers));
-}
+/* ────────────────────────────────────────
+   SESIÓN
+──────────────────────────────────────── */
+let session = null; // { username, name, role, color }
 
-/* ─── LOGIN / LOGOUT ───────────────────────────────── */
 function doLogin() {
-  const user = document.getElementById("loginUser").value.trim();
-  const pass = document.getElementById("loginPass").value;
+  const username = document.getElementById("loginUser").value.trim();
+  const pass     = document.getElementById("loginPass").value;
+  const users    = getUsers();
+  const found    = users[username];
 
-  if (appUsers[user] && appUsers[user].pass === pass) {
-    currentUser = { username: user, role: appUsers[user].role };
-    document.getElementById("loginError").classList.add("hidden");
-    enterApp();
-  } else {
-    document.getElementById("loginError").classList.remove("hidden");
+  const errEl = document.getElementById("loginError");
+
+  if (!found || found.pass !== pass) {
+    errEl.classList.add("show");
+    document.getElementById("loginPass").value = "";
+    setTimeout(() => errEl.classList.remove("show"), 3000);
+    return;
   }
+
+  session = { username, ...found };
+  errEl.classList.remove("show");
+  bootApp();
 }
 
+// Permite login con Enter
 document.getElementById("loginPass").addEventListener("keydown", e => {
   if (e.key === "Enter") doLogin();
 });
@@ -48,365 +62,373 @@ document.getElementById("loginUser").addEventListener("keydown", e => {
 });
 
 function doLogout() {
-  currentUser = null;
-  document.getElementById("appShell").classList.add("hidden");
-  document.getElementById("loginScreen").classList.remove("hidden");
+  session = null;
+  document.getElementById("loginScreen").style.display = "flex";
+  document.getElementById("app").style.display = "none";
   document.getElementById("loginUser").value = "";
   document.getElementById("loginPass").value = "";
 }
 
-function enterApp() {
-  document.getElementById("loginScreen").classList.add("hidden");
-  document.getElementById("appShell").classList.remove("hidden");
+function togglePass() {
+  const inp = document.getElementById("loginPass");
+  inp.type = inp.type === "password" ? "text" : "password";
+}
 
-  const isSA = currentUser.role === "superadmin";
+/* ────────────────────────────────────────
+   INICIALIZAR APP
+──────────────────────────────────────── */
+function bootApp() {
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").style.display = "flex";
 
-  // Mostrar nav correcto
-  document.getElementById("navSuperadmin").classList.toggle("hidden", !isSA);
-  document.getElementById("navOperator").classList.toggle("hidden", isSA);
+  // Avatar en sidebar
+  const initials = session.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const av = document.getElementById("sidebarAvatar");
+  av.textContent = initials;
+  av.style.background = session.color + "22";
+  av.style.color       = session.color;
+  av.style.border      = `1.5px solid ${session.color}44`;
+
+  document.getElementById("sidebarName").textContent = session.name;
+  document.getElementById("sidebarRole").textContent =
+    session.role === "superadmin" ? "Super Admin" : "Administrador";
+
+  // Mostrar sección admin solo si superadmin
+  if (session.role === "superadmin") {
+    document.getElementById("navLabelAdmin").style.display = "block";
+    document.getElementById("navAdmins").style.display = "flex";
+  }
+
+  // Reloj
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  showPage("dashboard");
+}
+
+function updateClock() {
+  const el = document.getElementById("topbarClock");
+  if (el) el.textContent = new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+}
+
+/* ────────────────────────────────────────
+   NAVEGACIÓN
+──────────────────────────────────────── */
+const PAGE_META = {
+  dashboard: { title: "Dashboard",          sub: "Vista general del sistema" },
+  uids:      { title: "Licencias / UIDs",   sub: "Gestión de licencias activas" },
+  admins:    { title: "Administradores",     sub: "Equipo y control de acceso" }
+};
+
+function showPage(id) {
+  // Ocultar todas las páginas y desactivar nav links
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+
+  // Activar página y link
+  const page = document.getElementById("page-" + id);
+  if (page) page.classList.add("active");
+  const link = document.querySelector(`.nav-link[data-page="${id}"]`);
+  if (link) link.classList.add("active");
 
   // Topbar
-  const rolePill = document.getElementById("topbarRole");
-  rolePill.textContent = isSA ? "★ Superadmin" : "Operador";
-  rolePill.className = "pill " + (isSA ? "role-sa" : "role");
+  const meta = PAGE_META[id] || {};
+  document.getElementById("pageTitle").textContent = meta.title || id;
+  document.getElementById("pageSub").textContent   = meta.sub   || "";
 
-  // Sidebar user
-  document.getElementById("sidebarUser").textContent = `@${currentUser.username}`;
+  // Cargar datos según página
+  if (id === "dashboard") { loadUIDs(); renderDashboardActivity(); }
+  if (id === "uids")      { loadUIDs(); }
+  if (id === "admins")    { renderAdminList(); }
+}
 
-  // Default view
-  const defaultView = isSA ? "dashboard-sa" : "operator-view";
-  activateView(defaultView);
-  setTopbarTitle(defaultView);
+/* ════════════════════════════════════════════════
+   UIDs
+════════════════════════════════════════════════ */
+async function loadUIDs() {
+  const list = document.getElementById("uidList");
+  if (!list) return;
 
-  if (isSA) {
-    refreshSuperadminDashboard();
-  } else {
-    loadMyUIDs();
+  list.innerHTML = `<tr><td colspan="6" class="loading-cell"><span class="spinner"></span>Cargando licencias…</td></tr>`;
+
+  let data;
+  try {
+    const res = await fetch(API_URL);
+    data = await res.json();
+  } catch {
+    list.innerHTML = `<tr><td colspan="6" class="loading-cell" style="color:var(--red)">⚠ No se pudo conectar con la API</td></tr>`;
+    return;
   }
-}
 
-/* ─── NAVEGACIÓN ────────────────────────────────────── */
-function switchView(el) {
-  document.querySelectorAll(".nav-item").forEach(a => a.classList.remove("active"));
-  el.classList.add("active");
-
-  const view = el.dataset.view;
-  activateView(view);
-  setTopbarTitle(view);
-
-  if (view === "dashboard-sa") refreshSuperadminDashboard();
-  if (view === "users-view") renderUsersList();
-  if (view === "all-uids-view") loadAllUIDs();
-  if (view === "operator-view") loadMyUIDs();
-}
-
-function activateView(viewId) {
-  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-  const el = document.getElementById(viewId);
-  if (el) el.classList.add("active");
-}
-
-const VIEW_TITLES = {
-  "dashboard-sa": "Dashboard",
-  "users-view": "Gestión de Usuarios",
-  "all-uids-view": "Todos los UIDs",
-  "operator-view": "Mis UIDs"
-};
-function setTopbarTitle(view) {
-  document.getElementById("topbarTitle").textContent = VIEW_TITLES[view] || view;
-}
-
-/* ─── API HELPERS ──────────────────────────────────── */
-async function apiGet() {
-  const res = await fetch(API_URL);
-  const data = await res.json();
-  return data.users || {};
-}
-
-async function apiAdd(uid, days) {
-  await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ uid, value: "1", days })
-  });
-}
-
-async function apiDelete(uid) {
-  await fetch(`${API_URL}/${uid}`, { method: "DELETE" });
-}
-
-/* ─── UID META (quién agregó cada uid) ─────────────── */
-function getUIDMeta() {
-  const stored = localStorage.getItem("uid_pro_meta");
-  return stored ? JSON.parse(stored) : {};
-}
-
-function setUIDMeta(uid, owner) {
-  const meta = getUIDMeta();
-  meta[uid] = { owner, addedAt: new Date().toISOString() };
-  localStorage.setItem("uid_pro_meta", JSON.stringify(meta));
-}
-
-function removeUIDMeta(uid) {
-  const meta = getUIDMeta();
-  delete meta[uid];
-  localStorage.setItem("uid_pro_meta", JSON.stringify(meta));
-}
-
-/* ─── SUPERADMIN: DASHBOARD ────────────────────────── */
-async function refreshSuperadminDashboard() {
-  const users = appUsers;
-  const operators = Object.entries(users).filter(([, u]) => u.role !== "superadmin");
-  document.getElementById("sa-totalUsers").textContent = operators.length;
-
-  const allUIDs = await apiGet();
-  const meta = getUIDMeta();
-  let active = 0, expired = 0;
-
-  Object.entries(allUIDs).forEach(([, info]) => {
-    if (info.daysRemaining !== null && info.daysRemaining <= 0) expired++;
-    else active++;
-  });
-
-  document.getElementById("sa-activeUIDs").textContent = active;
-  document.getElementById("sa-expiredUIDs").textContent = expired;
-  document.getElementById("sa-totalUIDs").textContent = Object.keys(allUIDs).length;
-
-  // Operator summary
-  const tbody = document.getElementById("sa-operatorSummary");
-  const uidsByOwner = {};
-  Object.entries(allUIDs).forEach(([uid]) => {
-    const owner = meta[uid]?.owner || "—";
-    uidsByOwner[owner] = (uidsByOwner[owner] || 0) + 1;
-  });
-
-  const allAccounts = Object.entries(users);
-  tbody.innerHTML = allAccounts.map(([name, info]) => `
-    <tr>
-      <td><span class="uid-code">${name}</span></td>
-      <td><span class="badge ${info.role === 'superadmin' ? 'role-sa' : 'role-op'}">${info.role === 'superadmin' ? '★ Superadmin' : 'Operador'}</span></td>
-      <td>${uidsByOwner[name] || 0}</td>
-      <td><span class="badge active">Activo</span></td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" style="color:var(--muted);font-size:13px">Sin usuarios</td></tr>`;
-}
-
-/* ─── SUPERADMIN: CREAR OPERADOR ───────────────────── */
-function createOperator() {
-  const username = document.getElementById("newUserName").value.trim();
-  const pass     = document.getElementById("newUserPass").value.trim();
-
-  if (!username || !pass) return toast("Completa todos los campos", "error");
-  if (appUsers[username]) return toast("Ese usuario ya existe", "error");
-  if (pass.length < 4) return toast("Contraseña muy corta (mín. 4 chars)", "error");
-
-  appUsers[username] = { pass, role: "operator", createdAt: new Date().toISOString() };
-  saveAppUsers();
-
-  document.getElementById("newUserName").value = "";
-  document.getElementById("newUserPass").value = "";
-
-  toast(`Operador @${username} creado`, "success");
-  renderUsersList();
-}
-
-/* ─── SUPERADMIN: LISTA DE USUARIOS ────────────────── */
-function renderUsersList() {
-  const tbody = document.getElementById("usersList");
-  tbody.innerHTML = Object.entries(appUsers).map(([name, info]) => {
-    const isSA = info.role === "superadmin";
-    const date = new Date(info.createdAt).toLocaleDateString("es-PE");
-    const actions = isSA
-      ? `<span style="color:var(--muted);font-size:12px">—</span>`
-      : `
-        <div class="actions-cell">
-          <button class="btn warning" onclick="resetPass('${name}')">Cambiar pass</button>
-          <button class="btn delete" onclick="deleteOperator('${name}')">Eliminar</button>
-        </div>`;
-    return `
-      <tr>
-        <td><span class="uid-code">${name}</span></td>
-        <td><span class="badge ${isSA ? 'role-sa' : 'role-op'}">${isSA ? '★ Superadmin' : 'Operador'}</span></td>
-        <td style="color:var(--muted);font-family:var(--mono);font-size:13px">${date}</td>
-        <td>${actions}</td>
-      </tr>`;
-  }).join("");
-}
-
-function deleteOperator(username) {
-  if (!confirm(`¿Eliminar operador @${username}? Sus UIDs permanecerán.`)) return;
-  delete appUsers[username];
-  saveAppUsers();
-  toast(`Operador @${username} eliminado`, "success");
-  renderUsersList();
-  refreshSuperadminDashboard();
-}
-
-function resetPass(username) {
-  showModal(username);
-}
-
-/* ─── MODAL CAMBIO CONTRASEÑA ──────────────────────── */
-function showModal(username) {
-  const modal = document.createElement("div");
-  modal.className = "modal-overlay";
-  modal.id = "passModal";
-  modal.innerHTML = `
-    <div class="modal">
-      <h3>Cambiar contraseña — @${username}</h3>
-      <div class="form-group">
-        <label>Nueva contraseña</label>
-        <input id="modalPass" type="password" placeholder="Mín. 4 caracteres"/>
-      </div>
-      <div class="modal-actions">
-        <button class="btn secondary" onclick="closeModal()">Cancelar</button>
-        <button class="btn primary" onclick="confirmPassChange('${username}')">Guardar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(modal);
-  setTimeout(() => document.getElementById("modalPass")?.focus(), 100);
-}
-
-function closeModal() {
-  document.getElementById("passModal")?.remove();
-}
-
-function confirmPassChange(username) {
-  const pass = document.getElementById("modalPass").value.trim();
-  if (pass.length < 4) return toast("Contraseña muy corta", "error");
-  appUsers[username].pass = pass;
-  saveAppUsers();
-  closeModal();
-  toast(`Contraseña de @${username} actualizada`, "success");
-}
-
-/* ─── SUPERADMIN: TODOS LOS UIDS ───────────────────── */
-async function loadAllUIDs() {
-  const allUIDs = await apiGet();
-  const meta = getUIDMeta();
-  let total = 0, active = 0, expired = 0;
-  const rows = [];
-
-  Object.entries(allUIDs).forEach(([uid, info]) => {
-    total++;
-    const isExpired = info.daysRemaining !== null && info.daysRemaining <= 0;
-    if (isExpired) expired++; else active++;
-
-    const expText = info.expiresAt ? new Date(info.expiresAt).toLocaleDateString("es-PE") : "Sin expiración";
-    const owner = meta[uid]?.owner || "—";
-    let badge = info.daysRemaining === null
-      ? `<span class="badge active">∞</span>`
-      : isExpired
-        ? `<span class="badge expired">Expirado</span>`
-        : `<span class="badge active">${info.daysRemaining}d</span>`;
-
-    rows.push(`
-      <tr>
-        <td><span class="uid-code">${uid}</span></td>
-        <td style="color:var(--muted);font-family:var(--mono);font-size:12px">${owner}</td>
-        <td style="color:var(--muted);font-size:13px">${expText}</td>
-        <td>${badge}</td>
-        <td>
-          <button class="btn delete" onclick="saDeleteUID('${uid}')">Eliminar</button>
-        </td>
-      </tr>`);
-  });
-
-  document.getElementById("all-total").textContent = total;
-  document.getElementById("all-active").textContent = active;
-  document.getElementById("all-expired").textContent = expired;
-  document.getElementById("allUIDsList").innerHTML = rows.join("") ||
-    `<tr><td colspan="5" style="color:var(--muted);font-size:13px;padding:20px 0">Sin UIDs registrados</td></tr>`;
-}
-
-async function saDeleteUID(uid) {
-  if (!confirm(`¿Eliminar UID ${uid}?`)) return;
-  await apiDelete(uid);
-  removeUIDMeta(uid);
-  toast("UID eliminado", "success");
-  loadAllUIDs();
-}
-
-/* ─── OPERATOR: CARGAR MIS UIDS ───────────────────── */
-async function loadMyUIDs() {
-  const allUIDs = await apiGet();
-  const meta = getUIDMeta();
-  const myUID = currentUser.username;
-
-  const myEntries = Object.entries(allUIDs).filter(([uid]) =>
-    meta[uid]?.owner === myUID
-  );
+  const users  = data.users || {};
+  const entries = Object.entries(users);
 
   let total = 0, active = 0, expired = 0;
-  const rows = [];
+  list.innerHTML = "";
 
-  myEntries.forEach(([uid, info]) => {
-    total++;
-    const isExpired = info.daysRemaining !== null && info.daysRemaining <= 0;
-    if (isExpired) expired++; else active++;
+  if (entries.length === 0) {
+    list.innerHTML = `
+      <tr><td colspan="6">
+        <div class="empty-state">
+          <div class="empty-state__icon">📭</div>
+          <div class="empty-state__text">No hay UIDs registrados aún</div>
+        </div>
+      </td></tr>`;
+  } else {
+    entries.forEach(([uid, info]) => {
+      total++;
+      const isExpired = info.daysRemaining !== null && info.daysRemaining <= 0;
+      if (isExpired) expired++; else active++;
 
-    const expText = info.expiresAt ? new Date(info.expiresAt).toLocaleDateString("es-PE") : "Sin expiración";
-    let badge = info.daysRemaining === null
-      ? `<span class="badge active">∞</span>`
-      : isExpired
-        ? `<span class="badge expired">Expirado</span>`
-        : `<span class="badge active">${info.daysRemaining} días</span>`;
+      const expText = info.expiresAt
+        ? new Date(info.expiresAt).toLocaleString("es", { dateStyle: "short", timeStyle: "short" })
+        : "Sin expiración";
 
-    rows.push(`
-      <tr>
-        <td><span class="uid-code">${uid}</span></td>
-        <td style="color:var(--muted);font-size:13px">${expText}</td>
-        <td>${badge}</td>
-        <td>
-          <button class="btn delete" onclick="deleteMyUID('${uid}')">Eliminar</button>
-        </td>
-      </tr>`);
-  });
+      let badge;
+      if (info.daysRemaining === null) {
+        badge = `<span class="badge badge--infinite">∞ Permanente</span>`;
+      } else if (isExpired) {
+        badge = `<span class="badge badge--expired">Expirado</span>`;
+      } else {
+        badge = `<span class="badge badge--active">${info.daysRemaining}d restantes</span>`;
+      }
 
-  document.getElementById("op-total").textContent = total;
-  document.getElementById("op-active").textContent = active;
-  document.getElementById("op-expired").textContent = expired;
-  document.getElementById("uidList").innerHTML = rows.join("") ||
-    `<tr><td colspan="4" style="color:var(--muted);font-size:13px;padding:20px 0">No has registrado UIDs aún</td></tr>`;
+      // Metadata de autor
+      const meta      = getUIDMeta(uid);
+      const addedAt   = meta ? new Date(meta.addedAt).toLocaleString("es", { dateStyle: "short", timeStyle: "short" }) : "—";
+      let authorHTML  = `<span class="no-perm">—</span>`;
+
+      if (meta) {
+        const allUsers = getUsers();
+        const u        = allUsers[meta.username];
+        const color    = u ? u.color : "#6b7280";
+        const ini      = meta.addedBy.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+        authorHTML = `
+          <div class="author-cell">
+            <div class="author-avatar" style="background:${color}22;color:${color};border:1.5px solid ${color}44">${ini}</div>
+            <span class="author-name">${meta.addedBy}</span>
+          </div>`;
+      }
+
+      // Permiso para eliminar: superadmin puede todo; admin solo sus propios UIDs
+      const canDelete = session.role === "superadmin" ||
+                        (meta && meta.username === session.username);
+
+      const actionHTML = canDelete
+        ? `<button class="btn-del" onclick="deleteUID('${uid}')">Eliminar</button>`
+        : `<span class="no-perm">Sin permiso</span>`;
+
+      list.innerHTML += `
+        <tr>
+          <td class="td-uid">${uid}</td>
+          <td class="td-date">${expText}</td>
+          <td>${badge}</td>
+          <td>${authorHTML}</td>
+          <td class="td-date">${addedAt}</td>
+          <td>${actionHTML}</td>
+        </tr>`;
+    });
+  }
+
+  // Contadores
+  document.getElementById("totalCount").textContent  = total;
+  document.getElementById("activeCount").textContent = active;
+  document.getElementById("expiredCount").textContent= expired;
+  const countEl = document.getElementById("uidCount");
+  if (countEl) countEl.textContent = `${total} registro${total !== 1 ? "s" : ""}`;
 }
 
-/* ─── OPERATOR: AGREGAR UID ────────────────────────── */
+/* ── Agregar UID ── */
 async function addUID() {
   const uidInput  = document.getElementById("newUID");
   const daysInput = document.getElementById("days");
   const uid  = uidInput.value.trim();
   const days = parseInt(daysInput.value, 10);
 
-  if (!uid)           return toast("Escribe un UID", "error");
-  if (!days || days <= 0) return toast("Días inválidos", "error");
+  if (!uid)             { showToast("⚠️", "Escribe un UID"); return; }
+  if (!days || days < 1){ showToast("⚠️", "Indica un número de días válido"); return; }
 
-  await apiAdd(uid, days);
-  setUIDMeta(uid, currentUser.username);
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uid, value: "1", days })
+    });
 
-  uidInput.value  = "";
-  daysInput.value = "";
+    if (!res.ok) throw new Error("API error");
 
-  toast(`UID ${uid} agregado`, "success");
-  loadMyUIDs();
+    // Guardar metadata de autor
+    saveUIDMeta(uid, {
+      username: session.username,
+      addedBy:  session.name,
+      addedAt:  new Date().toISOString()
+    });
+
+    // Guardar en actividad
+    logActivity("add", uid, session.name);
+
+    uidInput.value  = "";
+    daysInput.value = "";
+    showToast("✅", `UID <strong>${uid}</strong> registrado`);
+    loadUIDs();
+    renderDashboardActivity();
+  } catch {
+    showToast("❌", "Error al registrar el UID");
+  }
 }
 
-/* ─── OPERATOR: ELIMINAR UID ───────────────────────── */
-async function deleteMyUID(uid) {
-  if (!confirm(`¿Eliminar UID ${uid}?`)) return;
-  await apiDelete(uid);
-  removeUIDMeta(uid);
-  toast("UID eliminado", "success");
-  loadMyUIDs();
+/* ── Eliminar UID ── */
+async function deleteUID(uid) {
+  if (!confirm(`¿Eliminar el UID "${uid}"? Esta acción no se puede deshacer.`)) return;
+
+  try {
+    await fetch(`${API_URL}/${uid}`, { method: "DELETE" });
+    removeUIDMeta(uid);
+    logActivity("del", uid, session.name);
+    showToast("🗑️", `UID ${uid} eliminado`);
+    loadUIDs();
+    renderDashboardActivity();
+  } catch {
+    showToast("❌", "Error al eliminar el UID");
+  }
 }
 
-/* ─── TOAST ────────────────────────────────────────── */
-function toast(msg, type = "success") {
-  const t = document.createElement("div");
-  t.className = `toast ${type}`;
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
+/* ════════════════════════════════════════════════
+   METADATA (localStorage)
+════════════════════════════════════════════════ */
+function getUIDMeta(uid) {
+  try { return JSON.parse(localStorage.getItem("uidmeta:" + uid)); }
+  catch { return null; }
+}
+function saveUIDMeta(uid, meta) {
+  localStorage.setItem("uidmeta:" + uid, JSON.stringify(meta));
+}
+function removeUIDMeta(uid) {
+  localStorage.removeItem("uidmeta:" + uid);
 }
 
-/* ─── INIT ─────────────────────────────────────────── */
-loadAppUsers();
+/* ════════════════════════════════════════════════
+   ACTIVIDAD (feed de últimas acciones, localStorage)
+════════════════════════════════════════════════ */
+const ACTIVITY_KEY = "uidvault_activity";
+const MAX_EVENTS   = 20;
+
+function logActivity(type, uid, actor) {
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || []; } catch {}
+  log.unshift({ type, uid, actor, at: new Date().toISOString() });
+  log = log.slice(0, MAX_EVENTS);
+  localStorage.setItem(ACTIVITY_KEY, JSON.stringify(log));
+}
+
+function renderDashboardActivity() {
+  const el = document.getElementById("recentActivity");
+  if (!el) return;
+
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem(ACTIVITY_KEY)) || []; } catch {}
+
+  if (log.length === 0) {
+    el.innerHTML = `<p class="activity-empty">Sin actividad registrada aún.</p>`;
+    return;
+  }
+
+  el.innerHTML = log.slice(0, 10).map(e => {
+    const dotCls = e.type === "add" ? "activity-dot--add" : "activity-dot--del";
+    const verb   = e.type === "add" ? "registró" : "eliminó";
+    const time   = new Date(e.at).toLocaleString("es", { dateStyle: "short", timeStyle: "short" });
+    return `
+      <div class="activity-item">
+        <div class="activity-dot ${dotCls}"></div>
+        <div>
+          <div class="activity-text">
+            <strong>${e.actor}</strong> ${verb} el UID <strong>${e.uid}</strong>
+          </div>
+          <div class="activity-time">${time}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+/* ════════════════════════════════════════════════
+   ADMINISTRADORES (solo superadmin)
+════════════════════════════════════════════════ */
+function renderAdminList() {
+  const el = document.getElementById("adminList");
+  if (!el) return;
+
+  const users = getUsers();
+  el.innerHTML = "";
+
+  Object.entries(users).forEach(([username, u]) => {
+    const ini     = u.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    const roleTag = u.role === "superadmin"
+      ? `<span class="role-tag role-tag--super">Super Admin</span>`
+      : `<span class="role-tag role-tag--admin">Admin</span>`;
+
+    const delBtn = (u.role !== "superadmin")
+      ? `<button class="btn-del" style="font-size:11px;padding:4px 9px" onclick="removeAdmin('${username}')">Quitar</button>`
+      : "";
+
+    el.innerHTML += `
+      <div class="admin-row">
+        <div class="admin-row__avatar" style="background:${u.color}22;color:${u.color};border:1.5px solid ${u.color}44">${ini}</div>
+        <div class="admin-row__info">
+          <div class="admin-row__name">${u.name}</div>
+          <div class="admin-row__user">@${username}</div>
+        </div>
+        ${roleTag}
+        ${delBtn}
+      </div>`;
+  });
+}
+
+function addAdmin() {
+  const name = document.getElementById("newAdminName").value.trim();
+  const user = document.getElementById("newAdminUser").value.trim();
+  const pass = document.getElementById("newAdminPass").value;
+
+  if (!name || !user || !pass) { showToast("⚠️", "Completa todos los campos"); return; }
+
+  const users = getUsers();
+  if (users[user]) { showToast("⚠️", "Ese nombre de usuario ya existe"); return; }
+
+  const palette = ["#6777ff","#2dd4a0","#22d3ee","#a78bfa","#f472b6","#fb923c","#38bdf8"];
+  users[user] = {
+    pass,
+    role:  "admin",
+    name,
+    color: palette[Object.keys(users).length % palette.length]
+  };
+  saveUsers(users);
+
+  document.getElementById("newAdminName").value = "";
+  document.getElementById("newAdminUser").value = "";
+  document.getElementById("newAdminPass").value = "";
+
+  showToast("✅", `Administrador <strong>${name}</strong> creado`);
+  renderAdminList();
+}
+
+function removeAdmin(username) {
+  if (!confirm(`¿Eliminar al administrador "${username}"?`)) return;
+  const users = getUsers();
+  if (users[username].role === "superadmin") { showToast("⚠️", "No puedes eliminar al superadmin"); return; }
+  delete users[username];
+  saveUsers(users);
+  showToast("🗑️", `Admin ${username} eliminado`);
+  renderAdminList();
+}
+
+/* ════════════════════════════════════════════════
+   TOAST
+════════════════════════════════════════════════ */
+let _toastTimer;
+function showToast(icon, msg) {
+  const t  = document.getElementById("toast");
+  document.getElementById("toastIcon").textContent = icon;
+  document.getElementById("toastMsg").innerHTML    = msg;
+  t.classList.add("show");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+}
