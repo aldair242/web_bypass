@@ -2,74 +2,194 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>UID Dashboard PRO</title>
+  <title>UID PRO · Panel de Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <aside class="sidebar">
-    <div class="logo">UID<span>PRO</span></div>
-    <nav>
-      <a class="active">Dashboard</a>
-      <a>Licencias</a>
-      <a>Usuarios</a>
-      <a>Configuración</a>
-    </nav>
-  </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <h1>Gestión de UIDs</h1>
-      <span class="status">● Online</span>
-    </header>
-
-    <!-- STATS -->
-    <section class="stats">
-      <div class="stat-card">
-        <h3>Total UIDs</h3>
-        <p id="totalCount">0</p>
+  <!-- ===================== LOGIN SCREEN ===================== -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-bg">
+      <div class="grid-overlay"></div>
+      <div class="glow glow-1"></div>
+      <div class="glow glow-2"></div>
+    </div>
+    <div class="login-box">
+      <div class="login-logo">UID<span>PRO</span></div>
+      <p class="login-sub">Sistema de Gestión de Licencias</p>
+      <div class="form-group">
+        <label>Usuario</label>
+        <input id="loginUser" type="text" placeholder="Ingresa tu usuario" autocomplete="off"/>
       </div>
-      <div class="stat-card green">
-        <h3>Activos</h3>
-        <p id="activeCount">0</p>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input id="loginPass" type="password" placeholder="••••••••" />
       </div>
-      <div class="stat-card red">
-        <h3>Expirados</h3>
-        <p id="expiredCount">0</p>
+      <div id="loginError" class="login-error hidden">Usuario o contraseña incorrectos</div>
+      <button class="btn-login" onclick="doLogin()">Ingresar →</button>
+    </div>
+  </div>
+
+  <!-- ===================== APP SHELL ===================== -->
+  <div id="appShell" class="app hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="logo">UID<span>PRO</span></div>
+
+      <!-- SUPERADMIN NAV -->
+      <nav id="navSuperadmin" class="hidden">
+        <span class="nav-label">Panel</span>
+        <a class="nav-item active" data-view="dashboard-sa" onclick="switchView(this)">
+          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" data-view="users-view" onclick="switchView(this)">
+          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          Usuarios
+        </a>
+        <a class="nav-item" data-view="all-uids-view" onclick="switchView(this)">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Todos los UIDs
+        </a>
+      </nav>
+
+      <!-- OPERATOR NAV -->
+      <nav id="navOperator" class="hidden">
+        <span class="nav-label">Mi Panel</span>
+        <a class="nav-item active" data-view="operator-view" onclick="switchView(this)">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Mis UIDs
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-badge" id="sidebarUser"></div>
+        <button class="btn-logout" onclick="doLogout()">Salir</button>
       </div>
-    </section>
+    </aside>
 
-    <!-- ADD UID -->
-    <section class="card">
-      <h2>Agregar UID</h2>
-      <div class="form-row">
-        <input id="newUID" placeholder="UID" />
-        <input id="days" type="number" placeholder="Días" />
-        <button class="btn primary" onclick="addUID()">Agregar</button>
-      </div>
-    </section>
+    <!-- MAIN CONTENT -->
+    <main class="main">
 
-    <!-- TABLE -->
-    <section class="card">
-      <h2>UIDs Registrados</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>UID</th>
-            <th>Expira</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="uidList"></tbody>
-      </table>
-    </section>
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <div class="topbar-title" id="topbarTitle">Dashboard</div>
+        <div class="topbar-right">
+          <span class="pill online">● Online</span>
+          <span class="pill role" id="topbarRole"></span>
+        </div>
+      </header>
 
-    <footer>
-      UID Dashboard PRO · Cloudflare Workers
-    </footer>
-  </main>
+      <!-- ====== SUPERADMIN: DASHBOARD ====== -->
+      <section id="dashboard-sa" class="view active">
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-icon">👤</div>
+            <div>
+              <p class="stat-label">Operadores</p>
+              <p class="stat-num" id="sa-totalUsers">0</p>
+            </div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-icon">✅</div>
+            <div>
+              <p class="stat-label">UIDs Activos</p>
+              <p class="stat-num" id="sa-activeUIDs">0</p>
+            </div>
+          </div>
+          <div class="stat-card red">
+            <div class="stat-icon">⛔</div>
+            <div>
+              <p class="stat-label">UIDs Expirados</p>
+              <p class="stat-num" id="sa-expiredUIDs">0</p>
+            </div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-icon">🔑</div>
+            <div>
+              <p class="stat-label">Total UIDs</p>
+              <p class="stat-num" id="sa-totalUIDs">0</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Resumen de Operadores</h2>
+          <table>
+            <thead><tr><th>Usuario</th><th>Rol</th><th>UIDs Registrados</th><th>Estado</th></tr></thead>
+            <tbody id="sa-operatorSummary"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== SUPERADMIN: USUARIOS ====== -->
+      <section id="users-view" class="view">
+        <div class="card">
+          <h2>Crear Nuevo Operador</h2>
+          <div class="form-row">
+            <input id="newUserName" placeholder="Nombre de usuario" autocomplete="off"/>
+            <input id="newUserPass" type="password" placeholder="Contraseña" />
+            <button class="btn primary" onclick="createOperator()">+ Crear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Operadores del Sistema</h2>
+          <table>
+            <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th>Acciones</th></tr></thead>
+            <tbody id="usersList"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== SUPERADMIN: TODOS LOS UIDS ====== -->
+      <section id="all-uids-view" class="view">
+        <div class="stats mini">
+          <div class="stat-card"><p class="stat-label">Total</p><p class="stat-num" id="all-total">0</p></div>
+          <div class="stat-card green"><p class="stat-label">Activos</p><p class="stat-num" id="all-active">0</p></div>
+          <div class="stat-card red"><p class="stat-label">Expirados</p><p class="stat-num" id="all-expired">0</p></div>
+        </div>
+        <div class="card">
+          <h2>Todos los UIDs</h2>
+          <table>
+            <thead><tr><th>UID</th><th>Operador</th><th>Expira</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="allUIDsList"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ====== OPERATOR VIEW ====== -->
+      <section id="operator-view" class="view">
+        <div class="stats mini">
+          <div class="stat-card"><p class="stat-label">Total</p><p class="stat-num" id="op-total">0</p></div>
+          <div class="stat-card green"><p class="stat-label">Activos</p><p class="stat-num" id="op-active">0</p></div>
+          <div class="stat-card red"><p class="stat-label">Expirados</p><p class="stat-num" id="op-expired">0</p></div>
+        </div>
+
+        <div class="card">
+          <h2>Agregar UID</h2>
+          <div class="form-row">
+            <input id="newUID" placeholder="UID del dispositivo" autocomplete="off"/>
+            <input id="days" type="number" placeholder="Días" min="1" />
+            <button class="btn primary" onclick="addUID()">+ Agregar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Mis UIDs Registrados</h2>
+          <table>
+            <thead><tr><th>UID</th><th>Expira</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="uidList"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </main>
+  </div>
 
   <script src="app.js"></script>
 </body>
