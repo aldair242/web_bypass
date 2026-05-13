@@ -2,193 +2,248 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>UID PRO · Panel de Control</title>
+  <title>UID Vault — Panel de Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-  <!-- ===================== LOGIN SCREEN ===================== -->
+  <!-- ╔══════════════════╗ -->
+  <!-- ║  PANTALLA LOGIN  ║ -->
+  <!-- ╚══════════════════╝ -->
   <div id="loginScreen" class="login-screen">
-    <div class="login-bg">
-      <div class="grid-overlay"></div>
-      <div class="glow glow-1"></div>
-      <div class="glow glow-2"></div>
-    </div>
+    <div class="login-orb login-orb--a"></div>
+    <div class="login-orb login-orb--b"></div>
+
     <div class="login-box">
-      <div class="login-logo">UID<span>PRO</span></div>
-      <p class="login-sub">Sistema de Gestión de Licencias</p>
-      <div class="form-group">
-        <label>Usuario</label>
-        <input id="loginUser" type="text" placeholder="Ingresa tu usuario" autocomplete="off"/>
+      <div class="login-box__top-line"></div>
+
+      <div class="login-brand">
+        <div class="login-brand__icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <span>UID<em>Vault</em></span>
       </div>
-      <div class="form-group">
-        <label>Contraseña</label>
-        <input id="loginPass" type="password" placeholder="••••••••" />
+
+      <p class="login-tagline">Panel de licencias seguro</p>
+
+      <div class="field-group">
+        <label class="field-label">Usuario</label>
+        <input id="loginUser" class="field-input" type="text" placeholder="tu_usuario" autocomplete="username" />
       </div>
-      <div id="loginError" class="login-error hidden">Usuario o contraseña incorrectos</div>
-      <button class="btn-login" onclick="doLogin()">Ingresar →</button>
+      <div class="field-group">
+        <label class="field-label">Contraseña</label>
+        <div class="input-wrap">
+          <input id="loginPass" class="field-input" type="password" placeholder="••••••••" autocomplete="current-password" />
+          <button class="input-eye" onclick="togglePass()" type="button" id="eyeBtn">
+            <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" onclick="doLogin()">
+        Entrar al sistema
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+
+      <p class="login-error" id="loginError">Credenciales incorrectas</p>
+
+      <div class="login-demo-creds">
+        <span class="demo-label">Demo:</span>
+        <code>superadmin</code> / <code>super1234</code>
+        &nbsp;·&nbsp;
+        <code>admin1</code> / <code>admin1234</code>
+      </div>
     </div>
   </div>
 
-  <!-- ===================== APP SHELL ===================== -->
-  <div id="appShell" class="app hidden">
+
+  <!-- ╔═══════════╗ -->
+  <!-- ║    APP    ║ -->
+  <!-- ╚═══════════╝ -->
+  <div id="app" class="app">
 
     <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-      <div class="logo">UID<span>PRO</span></div>
+    <aside class="sidebar">
+      <div class="sidebar__logo">
+        <div class="sidebar__logo-mark">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        </div>
+        <span>UID<em>Vault</em></span>
+      </div>
 
-      <!-- SUPERADMIN NAV -->
-      <nav id="navSuperadmin" class="hidden">
-        <span class="nav-label">Panel</span>
-        <a class="nav-item active" data-view="dashboard-sa" onclick="switchView(this)">
-          <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <nav class="sidebar__nav">
+        <div class="nav-section-label">Principal</div>
+
+        <a class="nav-link active" data-page="dashboard" onclick="showPage('dashboard')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
           Dashboard
         </a>
-        <a class="nav-item" data-view="users-view" onclick="switchView(this)">
-          <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-          Usuarios
+
+        <a class="nav-link" data-page="uids" onclick="showPage('uids')">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          Licencias / UIDs
         </a>
-        <a class="nav-item" data-view="all-uids-view" onclick="switchView(this)">
-          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Todos los UIDs
+
+        <div class="nav-section-label" id="navLabelAdmin" style="display:none">Administración</div>
+        <a class="nav-link" data-page="admins" id="navAdmins" onclick="showPage('admins')" style="display:none">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          Administradores
         </a>
       </nav>
 
-      <!-- OPERATOR NAV -->
-      <nav id="navOperator" class="hidden">
-        <span class="nav-label">Mi Panel</span>
-        <a class="nav-item active" data-view="operator-view" onclick="switchView(this)">
-          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          Mis UIDs
-        </a>
-      </nav>
-
-      <div class="sidebar-footer">
-        <div class="user-badge" id="sidebarUser"></div>
-        <button class="btn-logout" onclick="doLogout()">Salir</button>
+      <div class="sidebar__bottom">
+        <div class="sidebar__user-card">
+          <div class="user-avatar" id="sidebarAvatar"></div>
+          <div class="user-meta">
+            <span class="user-name" id="sidebarName"></span>
+            <span class="user-role" id="sidebarRole"></span>
+          </div>
+          <button class="btn-logout" onclick="doLogout()" title="Salir">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
       </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
+    <!-- MAIN -->
     <main class="main">
 
-      <!-- TOPBAR -->
       <header class="topbar">
-        <div class="topbar-title" id="topbarTitle">Dashboard</div>
-        <div class="topbar-right">
-          <span class="pill online">● Online</span>
-          <span class="pill role" id="topbarRole"></span>
+        <div>
+          <h1 class="topbar__title" id="pageTitle">Dashboard</h1>
+          <div class="topbar__sub" id="pageSub">Vista general del sistema</div>
+        </div>
+        <div class="topbar__actions">
+          <div class="online-badge">
+            <span class="online-dot"></span>
+            Online
+          </div>
+          <div class="topbar__clock" id="topbarClock"></div>
         </div>
       </header>
 
-      <!-- ====== SUPERADMIN: DASHBOARD ====== -->
-      <section id="dashboard-sa" class="view active">
-        <div class="stats">
-          <div class="stat-card">
-            <div class="stat-icon">👤</div>
-            <div>
-              <p class="stat-label">Operadores</p>
-              <p class="stat-num" id="sa-totalUsers">0</p>
+      <!-- PAGE: DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card stat--blue">
+            <div class="stat__label">Total UIDs</div>
+            <div class="stat__num" id="totalCount">—</div>
+            <svg class="stat__bg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          </div>
+          <div class="stat-card stat--green">
+            <div class="stat__label">Activos</div>
+            <div class="stat__num" id="activeCount">—</div>
+            <svg class="stat__bg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="stat-card stat--red">
+            <div class="stat__label">Expirados</div>
+            <div class="stat__num" id="expiredCount">—</div>
+            <svg class="stat__bg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Actividad reciente</h2>
+          </div>
+          <div id="recentActivity" class="activity-feed"></div>
+        </div>
+      </div>
+
+      <!-- PAGE: UIDs -->
+      <div class="page" id="page-uids">
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Nueva licencia</h2>
+          </div>
+          <div class="add-uid-form">
+            <div class="field-group">
+              <label class="field-label">UID / Código de licencia</label>
+              <input id="newUID" class="field-input" placeholder="XXXX-XXXX-XXXX" />
+            </div>
+            <div class="field-group" style="max-width:140px">
+              <label class="field-label">Días de validez</label>
+              <input id="days" class="field-input" type="number" placeholder="30" min="1" />
+            </div>
+            <div class="field-group field-group--btn">
+              <label class="field-label">&nbsp;</label>
+              <button class="btn-primary" onclick="addUID()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Registrar UID
+              </button>
             </div>
           </div>
-          <div class="stat-card green">
-            <div class="stat-icon">✅</div>
-            <div>
-              <p class="stat-label">UIDs Activos</p>
-              <p class="stat-num" id="sa-activeUIDs">0</p>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="card__title">Licencias registradas</h2>
+            <span class="card__badge" id="uidCount"></span>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>UID</th>
+                  <th>Expira</th>
+                  <th>Estado</th>
+                  <th>Registrado por</th>
+                  <th>Registrado el</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="uidList"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGE: ADMINS -->
+      <div class="page" id="page-admins">
+        <div class="two-col">
+          <div class="card">
+            <div class="card__head">
+              <h2 class="card__title">Equipo</h2>
+            </div>
+            <div id="adminList"></div>
+          </div>
+          <div class="card">
+            <div class="card__head">
+              <h2 class="card__title">Nuevo administrador</h2>
+            </div>
+            <div class="new-admin-form">
+              <div class="field-group">
+                <label class="field-label">Nombre completo</label>
+                <input id="newAdminName" class="field-input" placeholder="Ej: Carlos Ruiz" />
+              </div>
+              <div class="field-group">
+                <label class="field-label">Usuario</label>
+                <input id="newAdminUser" class="field-input" placeholder="carlos_ruiz" />
+              </div>
+              <div class="field-group">
+                <label class="field-label">Contraseña</label>
+                <input id="newAdminPass" class="field-input" type="password" placeholder="••••••••" />
+              </div>
+              <button class="btn-primary" onclick="addAdmin()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Crear administrador
+              </button>
             </div>
           </div>
-          <div class="stat-card red">
-            <div class="stat-icon">⛔</div>
-            <div>
-              <p class="stat-label">UIDs Expirados</p>
-              <p class="stat-num" id="sa-expiredUIDs">0</p>
-            </div>
-          </div>
-          <div class="stat-card blue">
-            <div class="stat-icon">🔑</div>
-            <div>
-              <p class="stat-label">Total UIDs</p>
-              <p class="stat-num" id="sa-totalUIDs">0</p>
-            </div>
-          </div>
         </div>
-
-        <div class="card">
-          <h2>Resumen de Operadores</h2>
-          <table>
-            <thead><tr><th>Usuario</th><th>Rol</th><th>UIDs Registrados</th><th>Estado</th></tr></thead>
-            <tbody id="sa-operatorSummary"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ====== SUPERADMIN: USUARIOS ====== -->
-      <section id="users-view" class="view">
-        <div class="card">
-          <h2>Crear Nuevo Operador</h2>
-          <div class="form-row">
-            <input id="newUserName" placeholder="Nombre de usuario" autocomplete="off"/>
-            <input id="newUserPass" type="password" placeholder="Contraseña" />
-            <button class="btn primary" onclick="createOperator()">+ Crear</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Operadores del Sistema</h2>
-          <table>
-            <thead><tr><th>Usuario</th><th>Rol</th><th>Creado</th><th>Acciones</th></tr></thead>
-            <tbody id="usersList"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ====== SUPERADMIN: TODOS LOS UIDS ====== -->
-      <section id="all-uids-view" class="view">
-        <div class="stats mini">
-          <div class="stat-card"><p class="stat-label">Total</p><p class="stat-num" id="all-total">0</p></div>
-          <div class="stat-card green"><p class="stat-label">Activos</p><p class="stat-num" id="all-active">0</p></div>
-          <div class="stat-card red"><p class="stat-label">Expirados</p><p class="stat-num" id="all-expired">0</p></div>
-        </div>
-        <div class="card">
-          <h2>Todos los UIDs</h2>
-          <table>
-            <thead><tr><th>UID</th><th>Operador</th><th>Expira</th><th>Estado</th><th>Acciones</th></tr></thead>
-            <tbody id="allUIDsList"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ====== OPERATOR VIEW ====== -->
-      <section id="operator-view" class="view">
-        <div class="stats mini">
-          <div class="stat-card"><p class="stat-label">Total</p><p class="stat-num" id="op-total">0</p></div>
-          <div class="stat-card green"><p class="stat-label">Activos</p><p class="stat-num" id="op-active">0</p></div>
-          <div class="stat-card red"><p class="stat-label">Expirados</p><p class="stat-num" id="op-expired">0</p></div>
-        </div>
-
-        <div class="card">
-          <h2>Agregar UID</h2>
-          <div class="form-row">
-            <input id="newUID" placeholder="UID del dispositivo" autocomplete="off"/>
-            <input id="days" type="number" placeholder="Días" min="1" />
-            <button class="btn primary" onclick="addUID()">+ Agregar</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Mis UIDs Registrados</h2>
-          <table>
-            <thead><tr><th>UID</th><th>Expira</th><th>Estado</th><th>Acciones</th></tr></thead>
-            <tbody id="uidList"></tbody>
-          </table>
-        </div>
-      </section>
+      </div>
 
     </main>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div class="toast" id="toast">
+    <span id="toastIcon"></span>
+    <span id="toastMsg"></span>
   </div>
 
   <script src="app.js"></script>
