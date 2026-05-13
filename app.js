@@ -15,7 +15,7 @@ const API_URL = "https://uid-worker.bottuser7.workers.dev/uids";
    Estructura: { username: { pass, role, name, color } }
 ──────────────────────────────────────── */
 const SEED_USERS = {
-  superadmin: { pass: "@Jeremy2403", role: "aldairjeremy", name: "Super Admin",  color: "#f5a524" },
+  aldairjeremy: { pass: "@Jeremy2403", role: "superadmin", name: "Super Admin",  color: "#f5a524" },
   admin1:     { pass: "admin1234", role: "admin",      name: "Administrador 1", color: "#6777ff" }
 };
 
